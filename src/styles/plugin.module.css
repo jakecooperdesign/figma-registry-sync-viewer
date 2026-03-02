@@ -61,6 +61,23 @@
   gap: 4px;
   font-size: 11px;
   color: var(--figma-color-text-secondary);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.summaryItem:hover {
+  background: var(--figma-color-bg-hover);
+  border-color: var(--figma-color-border);
+}
+
+.summaryItemActive {
+  background: var(--figma-color-bg-brand);
+  color: var(--figma-color-text-onbrand);
+  border-color: var(--figma-color-bg-brand);
 }
 
 .summaryDot {
@@ -194,6 +211,94 @@
 
 .chevronOpen {
   transform: rotate(90deg);
+}
+
+/* ── Variant Set ──────────────────────────────────────────────── */
+
+.variantCount {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--figma-color-text-tertiary);
+}
+
+.variantSection {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--figma-color-border);
+}
+
+.variantHeader {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.variantTracked {
+  color: #4ADE80;
+}
+
+.variantUntracked {
+  color: #89B1FF;
+}
+
+.variantRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0 3px 12px;
+  font-size: 11px;
+}
+
+.variantName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--figma-color-text-secondary);
+}
+
+/* ── Status Description ───────────────────────────────────────── */
+
+.statusDescription {
+  font-size: 10px;
+  font-style: italic;
+  color: var(--figma-color-text-tertiary);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+/* ── Go-to Button ─────────────────────────────────────────────── */
+
+.goToBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  line-height: 1;
+  border: 1px solid var(--figma-color-border);
+  border-radius: 4px;
+  background: none;
+  color: var(--figma-color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.goToBtn:hover {
+  background: var(--figma-color-bg-brand);
+  color: var(--figma-color-text-onbrand);
+  border-color: var(--figma-color-bg-brand);
+}
+
+.goToBtnSuccess {
+  background: #1a3a2a;
+  color: #4ADE80;
+  border-color: #4ADE80;
 }
 
 /* ── Token Row extras ──────────────────────────────────────────── */

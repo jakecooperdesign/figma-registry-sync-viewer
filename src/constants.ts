@@ -19,5 +19,15 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   none:                  { bg: '#2a2a2a', text: '#94A3B8' },
 }
 
+export const STATUS_DESCRIPTIONS: Record<string, string> = {
+  synced:      'Component exists in both the registry and Figma, and they match.',
+  'in-sync':   'Component exists in both the registry and Figma, and they match.',
+  'code-only': 'Component is in the registry but has no linked Figma component.',
+  missing:     'Component is in the registry with a Figma mapping, but wasn\u2019t found in the file.',
+  untracked:   'Component exists in the Figma file but isn\u2019t tracked in the registry.',
+  unverified:  'Component is in the registry but hasn\u2019t been verified against Figma yet.',
+  drift:       'Component exists in both, but differences were detected.',
+}
+
 export const TAB_NAMES = ['Components', 'Tokens', 'Decisions', 'Settings'] as const
 export type TabName = (typeof TAB_NAMES)[number]

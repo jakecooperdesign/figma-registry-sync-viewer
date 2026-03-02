@@ -12,17 +12,25 @@ interface Props {
 
 export function ComponentsTab({ results }: Props) {
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
-    if (!search) return results
-    const q = search.toLowerCase()
-    return results.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.registryEntry?.codePath?.toLowerCase().includes(q) ||
-        r.registryEntry?.figmaName?.toLowerCase().includes(q)
-    )
-  }, [results, search])
+    return results.filter((r) => {
+      if (statusFilter) {
+        const normalized = r.status === 'in-sync' ? 'synced' : r.status
+        if (normalized !== statusFilter) return false
+      }
+      if (search) {
+        const q = search.toLowerCase()
+        if (
+          !r.name.toLowerCase().includes(q) &&
+          !r.registryEntry?.codePath?.toLowerCase().includes(q) &&
+          !r.registryEntry?.figmaName?.toLowerCase().includes(q)
+        ) return false
+      }
+      return true
+    })
+  }, [results, search, statusFilter])
 
   const registry = filtered.filter((r) => r.status !== 'untracked')
   const untracked = filtered.filter((r) => r.status === 'untracked')
@@ -44,7 +52,7 @@ export function ComponentsTab({ results }: Props) {
 
   return (
     <div>
-      <SummaryBar items={summaryItems} />
+      <SummaryBar items={summaryItems} activeFilter={statusFilter} onFilterChange={setStatusFilter} />
 
       <div class={styles.searchWrap}>
         <input
@@ -76,7 +84,7 @@ export function ComponentsTab({ results }: Props) {
 
       {filtered.length === 0 && (
         <div style={{ padding: '16px', textAlign: 'center', color: 'var(--figma-color-text-secondary)' }}>
-          No components match "{search}"
+          No components match {search ? `"${search}"` : ''}{search && statusFilter ? ' with ' : ''}{statusFilter ? `status "${statusFilter}"` : ''}
         </div>
       )}
     </div>

@@ -88,6 +88,8 @@ export interface FigmaComponentInfo {
   description: string
   remote: boolean
   parent: string | null
+  parentId: string | null
+  nodeType: 'COMPONENT' | 'COMPONENT_SET'
 }
 
 export interface FigmaVariableInfo {
@@ -105,6 +107,10 @@ export interface ComponentComparisonResult {
   registryEntry: ComponentEntry | null
   figmaComponent: FigmaComponentInfo | null
   status: ComparisonStatus
+  /** If this result is a variant set, its child variants */
+  variants?: ComponentComparisonResult[]
+  /** True if this result is a variant inside a set (should be hidden at top level) */
+  isVariant?: boolean
 }
 
 export type ComparisonStatus =
@@ -167,4 +173,9 @@ export interface ScanErrorHandler extends EventHandler {
 export interface UiReadyHandler extends EventHandler {
   name: 'UI_READY'
   handler: () => void
+}
+
+export interface NavigateToNodeHandler extends EventHandler {
+  name: 'NAVIGATE_TO_NODE'
+  handler: (data: { nodeId: string }) => void
 }

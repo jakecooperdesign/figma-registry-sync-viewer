@@ -4,6 +4,7 @@ import {
   FigmaComponentInfo,
   FigmaVariableInfo,
   FileInfoHandler,
+  NavigateToNodeHandler,
   RequestScanHandler,
   ResizeWindowHandler,
   ScanCompleteHandler,
@@ -20,6 +21,25 @@ export default function () {
   // Wait for UI to signal it's ready before sending file info
   on<UiReadyHandler>('UI_READY', function () {
     emit<FileInfoHandler>('FILE_INFO', { fileName: figma.root.name })
+  })
+
+  // Handle navigate-to-node request from UI
+  on<NavigateToNodeHandler>('NAVIGATE_TO_NODE', async function ({ nodeId }) {
+    try {
+      const node = await figma.getNodeByIdAsync(nodeId)
+      if (node) {
+        const page = findPage(node)
+        if (page && page !== figma.currentPage) {
+          await figma.setCurrentPageAsync(page)
+        }
+        figma.viewport.scrollAndZoomIntoView([node])
+        if (node.type === 'COMPONENT' || node.type === 'COMPONENT_SET' || node.type === 'INSTANCE' || node.type === 'FRAME' || node.type === 'GROUP') {
+          figma.currentPage.selection = [node]
+        }
+      }
+    } catch {
+      // Node may not exist in the file
+    }
   })
 
   // Handle scan request from UI
@@ -42,6 +62,8 @@ export default function () {
           description: comp.description,
           remote: comp.remote,
           parent: comp.parent ? comp.parent.name : null,
+          parentId: comp.parent && comp.parent.type === 'COMPONENT_SET' ? comp.parent.id : null,
+          nodeType: comp.type as 'COMPONENT' | 'COMPONENT_SET',
         }
       })
 
@@ -79,4 +101,13 @@ export default function () {
     height: 560,
     width: 400,
   })
+}
+
+function findPage(node: BaseNode): PageNode | null {
+  let current: BaseNode | null = node
+  while (current) {
+    if (current.type === 'PAGE') return current as PageNode
+    current = current.parent
+  }
+  return null
 }

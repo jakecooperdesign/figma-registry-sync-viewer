@@ -8,10 +8,42 @@ Built as a lightweight alternative to Figma Code Connect for teams on Pro plans.
 
 Upload your project's `figma-registry.json` and the plugin scans the current Figma file, then shows you:
 
-- **Components Tab** — Which components are synced, code-only, missing from Figma, or untracked. Expandable rows show sync notes, variants, CSS scope, and related Figma nodes.
+- **Components Tab** — Which components are synced, code-only, missing from Figma, or untracked. Variant sets are grouped under their parent component with tracked/untracked breakdowns. Expandable rows show sync notes, variants, CSS scope, and related Figma nodes.
 - **Tokens Tab** — Color, semantic, and spacing tokens matched by variable ID. Color swatches, CSS variable names, and value diff detection (RGBA float normalization built in).
 - **Decisions Tab** — Design decision log grouped by date, filterable by action type (Figma update needed, completed, no action, etc.).
 - **Settings Tab** — Current file info, registry stats, and actions to replace the registry, rescan, or clear cached data.
+
+## Features
+
+### Status filtering
+Click any status pill in the summary bar (e.g. "15 synced", "3 missing") to filter the component list to that status. Click again to clear the filter. Works alongside the text search.
+
+### Status descriptions
+Hover over a status pill to see a plain-English description of what it means. Expanding a component row also shows the description inline. The statuses are:
+
+| Status | Meaning |
+|--------|---------|
+| **synced** | Component exists in both the registry and Figma, and they match |
+| **code-only** | Component is in the registry but has no linked Figma component |
+| **missing** | Component is in the registry with a Figma mapping, but wasn't found in the file |
+| **untracked** | Component exists in the Figma file but isn't tracked in the registry |
+| **unverified** | Component is in the registry but hasn't been verified against Figma yet |
+| **drift** | Component exists in both, but differences were detected |
+
+### Variant grouping
+Component variant sets (COMPONENT_SET nodes in Figma) are grouped together rather than listed individually. Each group shows:
+- Total variant count in the row header
+- A tracked/untracked breakdown when expanded
+- Individual variant rows with their own status badges
+
+### Navigate to component
+Each component and variant with a known node ID has a **↗** button that scrolls and zooms to the component in the Figma file, switching pages if necessary and selecting the node.
+
+### Copy prompt snippet
+Each component row has a **⎘** button that copies a prompt-ready snippet to the clipboard. The snippet identifies the component by name, code path, Figma name, node ID, and CSS selectors, plus a one-line status summary — enough context to start an LLM conversation about that specific component.
+
+Example:
+> I'm working on the Button component (src/components/Button.tsx, Figma: "Button", node: 4:123, CSS: .btn, .btn-primary). It's drifted out of sync between code and Figma.
 
 ## Install
 
@@ -31,7 +63,7 @@ In Figma Desktop: **Plugins > Development > Import plugin from manifest** and po
 3. The plugin scans the file for components and variables, then runs the comparison
 4. Browse results across the four tabs
 
-The registry JSON is cached in Figma's client storage, so it persists between sessions. To switch projects, go to **Settings > Replace Registry JSON** and upload a different file.
+The registry JSON is cached in localStorage, so it persists between sessions (note: cache is cleared when the plugin is rebuilt during development). To switch projects, go to **Settings > Replace Registry JSON** and upload a different file.
 
 ## Registry JSON format
 
@@ -69,7 +101,7 @@ See the [types](src/types.ts) for the full schema.
 
 ## How comparison works
 
-**Components** are matched by `figmaComponentKey` (primary) or `figmaNodeId` (fallback). Components in Figma but not in the registry show as "untracked" (excluding remote library components).
+**Components** are matched by `figmaComponentKey` (primary) or `figmaNodeId` (fallback). Components in Figma but not in the registry show as "untracked" (excluding remote library components). Variant COMPONENT nodes are grouped under their parent COMPONENT_SET.
 
 **Tokens** are matched by `figmaId` (Figma variable ID). Color values are normalized from Figma's RGBA floats to uppercase hex for comparison. Spacing values compare as numbers.
 

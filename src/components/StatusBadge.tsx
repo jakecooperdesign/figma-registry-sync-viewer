@@ -10,7 +10,8 @@ interface Props {
 
 export function StatusBadge({ status, label }: Props) {
   const colors = STATUS_COLORS[status] ?? { bg: '#2a2a2a', text: '#94A3B8' }
-  const displayLabel = label ?? status.replace(/-/g, ' ')
+  const normalized = status === 'in-sync' ? 'synced' : status
+  const displayLabel = label ?? normalized.replace(/-/g, ' ')
 
   return (
     <span

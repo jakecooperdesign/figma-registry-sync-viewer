@@ -1,6 +1,7 @@
 import {
   ComponentComparisonResult,
   ComponentEntry,
+  ComponentKind,
   FigmaComponentInfo,
   RegistryJson,
 } from '../types'
@@ -40,7 +41,8 @@ export function compareComponents(
     }
 
     const status = resolveStatus(entry, figmaMatch)
-    flat.push({ name, registryEntry: entry, figmaComponent: figmaMatch, status })
+    const kind = resolveKind(name, entry)
+    flat.push({ name, registryEntry: entry, figmaComponent: figmaMatch, status, kind })
   }
 
   // Find untracked Figma components (in Figma but not in registry)
@@ -53,6 +55,7 @@ export function compareComponents(
       registryEntry: null,
       figmaComponent: fc,
       status: 'untracked',
+      kind: resolveKind(fc.name, null),
     })
   }
 
@@ -102,6 +105,7 @@ function groupVariants(
             registryEntry: null,
             figmaComponent: childFc,
             status: 'untracked',
+            kind: resolveKind(childFc.name, null),
             isVariant: true,
           })
           variantChildIds.add(childFc.id)
@@ -144,6 +148,7 @@ function groupVariants(
         registryEntry: null,
         figmaComponent: parentFc,
         status: 'untracked',
+        kind: resolveKind(parentFc.name, null),
         variants,
       })
     }
@@ -151,6 +156,13 @@ function groupVariants(
 
   // Filter out results that are now nested as variants
   return grouped.filter((r) => !variantChildIds.has(r.figmaComponent?.id ?? ''))
+}
+
+function resolveKind(name: string, entry: ComponentEntry | null): ComponentKind {
+  if (entry?.kind) return entry.kind
+  if (/Dashboard|View$|Page$|Wizard$/.test(name)) return 'page'
+  if (/Section$/.test(name)) return 'section'
+  return 'component'
 }
 
 function resolveStatus(

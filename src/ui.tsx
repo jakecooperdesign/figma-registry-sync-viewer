@@ -2,6 +2,7 @@ import { render, useWindowResize } from '@create-figma-plugin/ui'
 import { emit } from '@create-figma-plugin/utilities'
 import { h } from 'preact'
 
+import './styles/global.css'
 import { App } from './components/App'
 import { ResizeWindowHandler } from './types'
 

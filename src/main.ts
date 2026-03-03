@@ -1,16 +1,23 @@
 import { emit, on, showUI } from '@create-figma-plugin/utilities'
 
 import {
+  ClearStateHandler,
   FigmaComponentInfo,
   FigmaVariableInfo,
   FileInfoHandler,
+  LoadStateHandler,
   NavigateToNodeHandler,
+  PersistedState,
   RequestScanHandler,
   ResizeWindowHandler,
+  SaveStateHandler,
   ScanCompleteHandler,
   ScanErrorHandler,
+  StateLoadedHandler,
   UiReadyHandler,
 } from './types'
+
+const CLIENT_STORAGE_KEY = 'registry-sync-viewer-state'
 
 export default function () {
   // Handle resize
@@ -93,6 +100,32 @@ export default function () {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown scan error'
       emit<ScanErrorHandler>('SCAN_ERROR', { message })
+    }
+  })
+
+  // Handle persisted state via clientStorage (survives plugin close/reopen)
+  on<LoadStateHandler>('LOAD_STATE', async function () {
+    try {
+      const state = await figma.clientStorage.getAsync(CLIENT_STORAGE_KEY) as PersistedState | undefined
+      emit<StateLoadedHandler>('STATE_LOADED', state ?? null)
+    } catch {
+      emit<StateLoadedHandler>('STATE_LOADED', null)
+    }
+  })
+
+  on<SaveStateHandler>('SAVE_STATE', async function (data) {
+    try {
+      await figma.clientStorage.setAsync(CLIENT_STORAGE_KEY, data)
+    } catch {
+      // Storage full or unavailable
+    }
+  })
+
+  on<ClearStateHandler>('CLEAR_STATE', async function () {
+    try {
+      await figma.clientStorage.deleteAsync(CLIENT_STORAGE_KEY)
+    } catch {
+      // Ignore
     }
   })
 

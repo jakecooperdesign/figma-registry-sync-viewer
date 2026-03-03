@@ -11,7 +11,7 @@ Upload your project's `figma-registry.json` and the plugin scans the current Fig
 - **Components Tab** — Which components are synced, code-only, missing from Figma, or untracked. Variant sets are grouped under their parent component with tracked/untracked breakdowns. Expandable rows show sync notes, variants, CSS scope, and related Figma nodes.
 - **Tokens Tab** — Color, semantic, and spacing tokens matched by variable ID. Color swatches, CSS variable names, and value diff detection (RGBA float normalization built in).
 - **Decisions Tab** — Design decision log grouped by date, filterable by action type (Figma update needed, completed, no action, etc.).
-- **Settings Tab** — Current file info, registry stats, and actions to replace the registry, rescan, or clear cached data.
+- **Settings Tab** — Current file info, registry stats, export/copy registry, ignored component management, and actions to replace the registry, rescan, or clear cached data.
 
 ## Features
 
@@ -30,6 +30,12 @@ Hover over a status pill to see a plain-English description of what it means. Ex
 | **unverified** | Component is in the registry but hasn't been verified against Figma yet |
 | **drift** | Component exists in both, but differences were detected |
 
+### Ignore & restore components
+Any component can be moved to the "Ignored" list via the dismiss button on its row. Ignored components are hidden from the main list and summary counts but remain accessible in a collapsible "Ignored" section at the bottom of the Components tab. Click the restore button to bring a component back. The ignore list persists across sessions.
+
+### Export updated registry
+The Settings tab includes **Export Registry** and **Copy Registry** buttons. Both produce an updated `figma-registry.json` that merges untracked (non-ignored) Figma components into the registry with `status: "untracked"` and pre-filled Figma metadata — ready to paste into your project or hand to an LLM for processing.
+
 ### Variant grouping
 Component variant sets (COMPONENT_SET nodes in Figma) are grouped together rather than listed individually. Each group shows:
 - Total variant count in the row header
@@ -37,10 +43,10 @@ Component variant sets (COMPONENT_SET nodes in Figma) are grouped together rathe
 - Individual variant rows with their own status badges
 
 ### Navigate to component
-Each component and variant with a known node ID has a **↗** button that scrolls and zooms to the component in the Figma file, switching pages if necessary and selecting the node.
+Each component and variant with a known node ID has a navigate button that scrolls and zooms to the component in the Figma file, switching pages if necessary and selecting the node.
 
 ### Copy prompt snippet
-Each component row has a **⎘** button that copies a prompt-ready snippet to the clipboard. The snippet identifies the component by name, code path, Figma name, node ID, and CSS selectors, plus a one-line status summary — enough context to start an LLM conversation about that specific component.
+Each component row has a copy button that copies a prompt-ready snippet to the clipboard. The snippet identifies the component by name, code path, Figma name, node ID, and CSS selectors, plus a one-line status summary — enough context to start an LLM conversation about that specific component.
 
 Example:
 > I'm working on the Button component (src/components/Button.tsx, Figma: "Button", node: 4:123, CSS: .btn, .btn-primary). It's drifted out of sync between code and Figma.

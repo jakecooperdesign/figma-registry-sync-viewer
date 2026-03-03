@@ -1,5 +1,3 @@
-export const STORAGE_KEY = 'registry-sync-viewer-state'
-
 export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   synced:      { bg: '#1a3a2a', text: '#4ADE80' },
   'in-sync':   { bg: '#1a3a2a', text: '#4ADE80' },
@@ -27,6 +25,12 @@ export const STATUS_DESCRIPTIONS: Record<string, string> = {
   untracked:   'Component exists in the Figma file but isn\u2019t tracked in the registry.',
   unverified:  'Component is in the registry but hasn\u2019t been verified against Figma yet.',
   drift:       'Component exists in both, but differences were detected.',
+}
+
+export const KIND_COLORS: Record<string, { bg: string; text: string }> = {
+  page:      { bg: '#2a1a3a', text: '#C084FC' },
+  section:   { bg: '#1a2a2a', text: '#5EEAD4' },
+  component: { bg: '#2a2a2a', text: '#94A3B8' },
 }
 
 export const TAB_NAMES = ['Components', 'Tokens', 'Decisions', 'Settings'] as const

@@ -1,4 +1,5 @@
 /* ── Layout ─────────────────────────────────────────────────────── */
+/* Base: 12px root. All sizes in rem so one change scales everything. */
 
 .container {
   display: flex;
@@ -18,9 +19,9 @@
 
 .tab {
   flex: 1;
-  padding: 8px 4px;
+  padding: 0.667rem 0.333rem;
   text-align: center;
-  font-size: 11px;
+  font-size: 1rem;
   font-weight: 500;
   color: var(--figma-color-text-secondary);
   background: none;
@@ -42,29 +43,29 @@
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
+  padding: 0.667rem 1rem;
 }
 
 /* ── Summary Bar ───────────────────────────────────────────────── */
 
 .summaryBar {
   display: flex;
-  gap: 12px;
-  padding: 6px 0;
-  margin-bottom: 8px;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.333rem;
   flex-wrap: wrap;
 }
 
 .summaryItem {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 0.333rem;
+  font-size: 1rem;
   color: var(--figma-color-text-secondary);
   background: none;
   border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 2px 8px;
+  border-radius: 0.833rem;
+  padding: 0.167rem 0.667rem;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -81,8 +82,8 @@
 }
 
 .summaryDot {
-  width: 8px;
-  height: 8px;
+  width: 0.667rem;
+  height: 0.667rem;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -90,15 +91,15 @@
 /* ── Search ────────────────────────────────────────────────────── */
 
 .searchWrap {
-  margin-bottom: 8px;
+  margin-bottom: 0.667rem;
 }
 
 .searchInput {
   width: 100%;
-  padding: 6px 8px;
-  font-size: 11px;
+  padding: 0.5rem 0.667rem;
+  font-size: 1rem;
   border: 1px solid var(--figma-color-border);
-  border-radius: 4px;
+  border-radius: 0.333rem;
   background: var(--figma-color-bg-secondary);
   color: var(--figma-color-text);
   outline: none;
@@ -113,31 +114,30 @@
 
 .filterBar {
   display: flex;
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: 0.333rem;
+  margin-bottom: 0.5rem;
   flex-wrap: wrap;
 }
 
 .filterBtn {
-  padding: 3px 8px;
-  font-size: 10px;
+  padding: 0.167rem 0.667rem;
+  font-size: 0.917rem;
   font-weight: 500;
-  border: 1px solid var(--figma-color-border);
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 0.833rem;
   background: none;
-  color: var(--figma-color-text-secondary);
+  color: var(--figma-color-text-tertiary);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .filterBtn:hover {
   background: var(--figma-color-bg-hover);
+  color: var(--figma-color-text-secondary);
 }
 
 .filterBtnActive {
-  background: var(--figma-color-bg-brand);
-  color: var(--figma-color-text-onbrand);
-  border-color: var(--figma-color-bg-brand);
+  border-color: currentColor;
 }
 
 /* ── Status Badge ──────────────────────────────────────────────── */
@@ -145,20 +145,40 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 1px 6px;
-  font-size: 10px;
+  padding: 0.083rem 0.5rem;
+  font-size: 0.833rem;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 0.333rem;
   text-transform: uppercase;
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
+.kindBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.417rem;
+  margin-left: 0.5rem;
+  font-size: 0.833rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
 /* ── Component / Token Row ─────────────────────────────────────── */
 
 .row {
-  padding: 6px 0;
+  padding: 0.75rem 0.5rem;
+  margin: 0 -0.5rem;
   border-bottom: 1px solid var(--figma-color-border);
+  border-radius: 0.333rem;
+  transition: background 0.1s;
+}
+
+.row:hover {
+  background: var(--figma-color-bg-hover);
 }
 
 .rowHeader {
@@ -166,12 +186,12 @@
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  gap: 8px;
+  gap: 0.667rem;
 }
 
 .rowName {
   font-weight: 500;
-  font-size: 12px;
+  font-size: 1.083rem;
   color: var(--figma-color-text);
   flex: 1;
   min-width: 0;
@@ -181,16 +201,16 @@
 }
 
 .rowDetails {
-  padding: 6px 0 2px 0;
-  font-size: 11px;
+  padding: 0.5rem 0 0.167rem 1.667rem;
+  font-size: 1rem;
   color: var(--figma-color-text-secondary);
   line-height: 1.5;
 }
 
 .rowDetail {
   display: flex;
-  gap: 4px;
-  margin-bottom: 2px;
+  gap: 0.333rem;
+  margin-bottom: 0.167rem;
 }
 
 .rowDetailLabel {
@@ -216,23 +236,23 @@
 /* ── Variant Set ──────────────────────────────────────────────── */
 
 .variantCount {
-  font-size: 10px;
+  font-size: 0.917rem;
   font-weight: 400;
   color: var(--figma-color-text-tertiary);
 }
 
 .variantSection {
-  margin-top: 6px;
-  padding-top: 4px;
+  margin-top: 0.5rem;
+  padding-top: 0.333rem;
   border-top: 1px solid var(--figma-color-border);
 }
 
 .variantHeader {
   display: flex;
-  gap: 8px;
-  font-size: 10px;
+  gap: 0.667rem;
+  font-size: 0.917rem;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 0.333rem;
 }
 
 .variantTracked {
@@ -246,9 +266,9 @@
 .variantRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 0 3px 12px;
-  font-size: 11px;
+  gap: 0.5rem;
+  padding: 0.333rem 0 0.333rem 1rem;
+  font-size: 1rem;
 }
 
 .variantName {
@@ -263,25 +283,25 @@
 /* ── Status Description ───────────────────────────────────────── */
 
 .statusDescription {
-  font-size: 10px;
+  font-size: 0.917rem;
   font-style: italic;
   color: var(--figma-color-text-tertiary);
-  margin-bottom: 4px;
+  margin-bottom: 0.333rem;
   line-height: 1.4;
 }
 
-/* ── Go-to Button ─────────────────────────────────────────────── */
+/* ── Action Button (icon) ─────────────────────────────────────── */
 
 .goToBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  font-size: 12px;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1rem;
   line-height: 1;
   border: 1px solid var(--figma-color-border);
-  border-radius: 4px;
+  border-radius: 0.333rem;
   background: none;
   color: var(--figma-color-text-secondary);
   cursor: pointer;
@@ -301,12 +321,25 @@
   border-color: #4ADE80;
 }
 
+.goToBtnDisabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 /* ── Token Row extras ──────────────────────────────────────────── */
 
 .tokenInfo {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
   flex: 1;
   min-width: 0;
 }
@@ -320,7 +353,7 @@
 
 .tokenFigmaName {
   font-weight: 500;
-  font-size: 11px;
+  font-size: 1rem;
   color: var(--figma-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -328,7 +361,7 @@
 }
 
 .tokenCssVar {
-  font-size: 10px;
+  font-size: 0.917rem;
   color: var(--figma-color-text-tertiary);
   font-family: 'SF Mono', 'Fira Code', monospace;
   overflow: hidden;
@@ -338,9 +371,9 @@
 
 .valueDiff {
   display: flex;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 10px;
+  gap: 0.667rem;
+  padding: 0.333rem 0;
+  font-size: 0.917rem;
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
@@ -355,9 +388,9 @@
 /* ── Color Swatch ──────────────────────────────────────────────── */
 
 .swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 1.333rem;
+  height: 1.333rem;
+  border-radius: 0.25rem;
   border: 1px solid var(--figma-color-border);
   flex-shrink: 0;
 }
@@ -365,38 +398,38 @@
 /* ── Decision Card ─────────────────────────────────────────────── */
 
 .decisionCard {
-  padding: 8px 0;
+  padding: 0.667rem 0;
   border-bottom: 1px solid var(--figma-color-border);
 }
 
 .decisionComponent {
   font-weight: 600;
-  font-size: 12px;
+  font-size: 1.083rem;
   color: var(--figma-color-text);
-  margin-bottom: 2px;
+  margin-bottom: 0.167rem;
 }
 
 .decisionIssue {
-  font-size: 11px;
+  font-size: 1rem;
   color: var(--figma-color-text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 0.333rem;
   line-height: 1.4;
 }
 
 .decisionText {
-  font-size: 11px;
+  font-size: 1rem;
   color: var(--figma-color-text);
   line-height: 1.4;
-  margin-bottom: 4px;
+  margin-bottom: 0.333rem;
 }
 
 .dateGroup {
-  font-size: 10px;
+  font-size: 0.917rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--figma-color-text-tertiary);
-  padding: 8px 0 4px;
+  padding: 0.667rem 0 0.333rem;
 }
 
 /* ── Empty State ───────────────────────────────────────────────── */
@@ -407,24 +440,24 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 24px;
+  padding: 2rem;
   text-align: center;
-  gap: 12px;
+  gap: 1rem;
 }
 
 .emptyIcon {
-  font-size: 32px;
+  font-size: 2.667rem;
   opacity: 0.5;
 }
 
 .emptyTitle {
-  font-size: 14px;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--figma-color-text);
 }
 
 .emptyDescription {
-  font-size: 11px;
+  font-size: 1rem;
   color: var(--figma-color-text-secondary);
   line-height: 1.5;
   max-width: 280px;
@@ -432,9 +465,9 @@
 
 .dropZone {
   width: 100%;
-  padding: 24px;
+  padding: 2rem;
   border: 2px dashed var(--figma-color-border);
-  border-radius: 8px;
+  border-radius: 0.667rem;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -453,36 +486,36 @@
 /* ── Settings ──────────────────────────────────────────────────── */
 
 .settingsSection {
-  margin-bottom: 16px;
+  margin-bottom: 1.333rem;
 }
 
 .settingsLabel {
-  font-size: 10px;
+  font-size: 0.917rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--figma-color-text-tertiary);
-  margin-bottom: 4px;
+  margin-bottom: 0.333rem;
 }
 
 .settingsValue {
-  font-size: 12px;
+  font-size: 1rem;
   color: var(--figma-color-text);
   line-height: 1.5;
 }
 
 .settingsActions {
   display: flex;
-  gap: 8px;
+  gap: 0.667rem;
   flex-wrap: wrap;
 }
 
 .actionBtn {
-  padding: 6px 12px;
-  font-size: 11px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
   font-weight: 500;
   border: 1px solid var(--figma-color-border);
-  border-radius: 6px;
+  border-radius: 0.5rem;
   background: var(--figma-color-bg-secondary);
   color: var(--figma-color-text);
   cursor: pointer;
@@ -491,6 +524,12 @@
 
 .actionBtn:hover {
   background: var(--figma-color-bg-hover);
+}
+
+.actionBtnSuccess {
+  border-color: #166534;
+  color: #4ADE80;
+  background: #1a3a2a;
 }
 
 .actionBtnDanger {
@@ -503,26 +542,26 @@
 }
 
 .warning {
-  padding: 8px;
-  border-radius: 6px;
+  padding: 0.667rem;
+  border-radius: 0.5rem;
   background: #2D1F0A;
   border: 1px solid #92400E;
   color: #FBBF24;
-  font-size: 11px;
+  font-size: 1rem;
   line-height: 1.4;
-  margin-bottom: 12px;
+  margin-bottom: 1rem;
 }
 
 /* ── Section Separator ─────────────────────────────────────────── */
 
 .sectionTitle {
-  font-size: 10px;
+  font-size: 0.917rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--figma-color-text-tertiary);
-  padding: 8px 0 4px;
-  margin-top: 4px;
+  padding: 0.667rem 0 0.333rem;
+  margin-top: 0.333rem;
 }
 
 /* ── Scanning state ────────────────────────────────────────────── */
@@ -533,14 +572,14 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 8px;
+  gap: 0.667rem;
   color: var(--figma-color-text-secondary);
-  font-size: 12px;
+  font-size: 1.083rem;
 }
 
 .spinner {
-  width: 24px;
-  height: 24px;
+  width: 2rem;
+  height: 2rem;
   border: 2px solid var(--figma-color-border);
   border-top-color: var(--figma-color-text-brand);
   border-radius: 50%;

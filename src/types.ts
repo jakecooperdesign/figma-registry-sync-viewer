@@ -42,7 +42,10 @@ export interface ComponentEntry {
   children?: string[]
   relatedFigma?: Record<string, string>
   syncNotes?: string
+  kind?: ComponentKind
 }
+
+export type ComponentKind = 'page' | 'section' | 'component'
 
 export type ComponentStatus =
   | 'synced'
@@ -51,6 +54,7 @@ export type ComponentStatus =
   | 'code-only'
   | 'missing'
   | 'drift'
+  | 'untracked'
 
 export interface DecisionEntry {
   component: string
@@ -107,6 +111,7 @@ export interface ComponentComparisonResult {
   registryEntry: ComponentEntry | null
   figmaComponent: FigmaComponentInfo | null
   status: ComparisonStatus
+  kind: ComponentKind
   /** If this result is a variant set, its child variants */
   variants?: ComponentComparisonResult[]
   /** True if this result is a variant inside a set (should be hidden at top level) */
@@ -137,6 +142,7 @@ export type TokenCategory = 'primitives' | 'semantics' | 'spacing'
 export interface PersistedState {
   registry: RegistryJson | null
   lastLoadedAt: string | null
+  ignoredComponents?: string[]
 }
 
 // ── Event Handlers ────────────────────────────────────────────────────
@@ -178,4 +184,24 @@ export interface UiReadyHandler extends EventHandler {
 export interface NavigateToNodeHandler extends EventHandler {
   name: 'NAVIGATE_TO_NODE'
   handler: (data: { nodeId: string }) => void
+}
+
+export interface SaveStateHandler extends EventHandler {
+  name: 'SAVE_STATE'
+  handler: (data: PersistedState) => void
+}
+
+export interface LoadStateHandler extends EventHandler {
+  name: 'LOAD_STATE'
+  handler: () => void
+}
+
+export interface StateLoadedHandler extends EventHandler {
+  name: 'STATE_LOADED'
+  handler: (data: PersistedState | null) => void
+}
+
+export interface ClearStateHandler extends EventHandler {
+  name: 'CLEAR_STATE'
+  handler: () => void
 }

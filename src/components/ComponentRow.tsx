@@ -2,8 +2,9 @@ import { emit } from '@create-figma-plugin/utilities'
 import { h } from 'preact'
 import { useCallback, useMemo, useState } from 'preact/hooks'
 
-import { STATUS_DESCRIPTIONS } from '../constants'
+import { KIND_COLORS, STATUS_DESCRIPTIONS } from '../constants'
 import { ComponentComparisonResult, NavigateToNodeHandler } from '../types'
+import { Icon } from './Icon'
 import { StatusBadge } from './StatusBadge'
 import styles from '../styles/plugin.module.css'
 
@@ -23,7 +24,8 @@ function buildPromptSnippet(result: ComponentComparisonResult): string {
   const status = result.status
   const identifier = details.length > 0 ? ` (${details.join(', ')})` : ''
 
-  let prompt = `I'm working on the ${result.name} component${identifier}. `
+  const kindLabel = result.kind === 'page' ? 'page' : result.kind === 'section' ? 'section' : 'component'
+  let prompt = `I'm working on the ${result.name} ${kindLabel}${identifier}. `
 
   if (status === 'synced' || status === 'in-sync') {
     prompt += `It's currently in sync between code and Figma.`
@@ -44,9 +46,11 @@ function buildPromptSnippet(result: ComponentComparisonResult): string {
 
 interface Props {
   result: ComponentComparisonResult
+  onIgnore?: (name: string) => void
+  onRestore?: (name: string) => void
 }
 
-export function ComponentRow({ result }: Props) {
+export function ComponentRow({ result, onIgnore, onRestore }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
   const entry = result.registryEntry
@@ -86,26 +90,68 @@ export function ComponentRow({ result }: Props) {
   return (
     <div class={styles.row}>
       <div class={styles.rowHeader} onClick={() => setExpanded(!expanded)}>
-        <span class={`${styles.chevron} ${expanded ? styles.chevronOpen : ''}`}>▶</span>
+        <span class={`${styles.chevron} ${expanded ? styles.chevronOpen : ''}`}>
+          <Icon name="caret-right" size={10} />
+        </span>
         <span class={styles.rowName}>
           {result.name}
           {variantSummary && (
             <span class={styles.variantCount}> ({variantSummary.total} variants)</span>
           )}
+          {result.kind !== 'component' && (
+            <span
+              class={styles.kindBadge}
+              style={{
+                background: KIND_COLORS[result.kind].bg,
+                color: KIND_COLORS[result.kind].text,
+              }}
+            >
+              {result.kind}
+            </span>
+          )}
         </span>
-        <button
-          class={`${styles.goToBtn} ${copied ? styles.goToBtnSuccess : ''}`}
-          onClick={handleCopy}
-          title="Copy component info for LLM prompt"
-        >
-          {copied ? '✓' : '⎘'}
-        </button>
-        {nodeId && (
-          <button class={styles.goToBtn} onClick={handleNavigate} title="Go to component in file">
-            ↗
+        <div class={styles.rowActions}>
+          <StatusBadge status={result.status} />
+          {onRestore && (
+            <button
+              class={styles.goToBtn}
+              onClick={(e: Event) => {
+                e.stopPropagation()
+                onRestore(result.name)
+              }}
+              title="Restore this component"
+            >
+              <Icon name="arrow-counter-clockwise" size={14} />
+            </button>
+          )}
+          {onIgnore && (
+            <button
+              class={styles.goToBtn}
+              onClick={(e: Event) => {
+                e.stopPropagation()
+                onIgnore(result.name)
+              }}
+              title="Ignore this component"
+            >
+              <Icon name="x" size={14} />
+            </button>
+          )}
+          <button
+            class={`${styles.goToBtn} ${copied ? styles.goToBtnSuccess : ''}`}
+            onClick={handleCopy}
+            title="Copy component info for LLM prompt"
+          >
+            <Icon name={copied ? 'check' : 'copy'} size={14} />
           </button>
-        )}
-        <StatusBadge status={result.status} />
+          <button
+            class={`${styles.goToBtn} ${!nodeId ? styles.goToBtnDisabled : ''}`}
+            onClick={nodeId ? handleNavigate : undefined}
+            title={nodeId ? 'Go to component in file' : 'No linked Figma component'}
+            disabled={!nodeId}
+          >
+            <Icon name="arrow-square-out" size={14} />
+          </button>
+        </div>
       </div>
 
       {expanded && (
@@ -207,12 +253,17 @@ function VariantRow({ variant }: { variant: ComponentComparisonResult }) {
   return (
     <div class={styles.variantRow}>
       <span class={styles.variantName}>{variant.name}</span>
-      {nodeId && (
-        <button class={styles.goToBtn} onClick={handleNavigate} title="Go to variant in file">
-          ↗
+      <div class={styles.rowActions}>
+        <StatusBadge status={variant.status} />
+        <button
+          class={`${styles.goToBtn} ${!nodeId ? styles.goToBtnDisabled : ''}`}
+          onClick={nodeId ? handleNavigate : undefined}
+          title={nodeId ? 'Go to variant in file' : 'No linked Figma component'}
+          disabled={!nodeId}
+        >
+          <Icon name="arrow-square-out" size={14} />
         </button>
-      )}
-      <StatusBadge status={variant.status} />
+      </div>
     </div>
   )
 }

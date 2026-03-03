@@ -1,20 +1,63 @@
 import { h } from 'preact'
-import { useCallback, useRef } from 'preact/hooks'
+import { useCallback, useMemo, useRef, useState } from 'preact/hooks'
 
-import { RegistryJson } from '../types'
+import { ComponentComparisonResult, RegistryJson } from '../types'
 import styles from '../styles/plugin.module.css'
 
 interface Props {
   registry: RegistryJson
   fileName: string
   lastLoadedAt: string | null
+  componentResults: ComponentComparisonResult[]
+  ignoredComponents: string[]
   onReplace: (registry: RegistryJson) => void
   onRescan: () => void
   onClear: () => void
+  onClearIgnored: () => void
 }
 
-export function SettingsTab({ registry, fileName, lastLoadedAt, onReplace, onRescan, onClear }: Props) {
+function buildExportJson(registry: RegistryJson, componentResults: ComponentComparisonResult[], ignoredNames: Set<string>): string {
+  const components = { ...registry.components }
+
+  for (const r of componentResults) {
+    if (r.status !== 'untracked') continue
+    if (!r.figmaComponent) continue
+    if (ignoredNames.has(r.name)) continue
+
+    // Use the Figma component name as the registry key
+    const key = r.name
+    if (components[key]) continue // Already exists
+
+    components[key] = {
+      codePath: '',
+      cssScope: [],
+      figmaNodeId: r.figmaComponent.id,
+      figmaComponentKey: r.figmaComponent.key,
+      figmaName: r.figmaComponent.name,
+      lastVerified: '',
+      status: 'untracked',
+    }
+  }
+
+  const exported = { ...registry, components }
+  return JSON.stringify(exported, null, 2)
+}
+
+export function SettingsTab({
+  registry,
+  fileName,
+  lastLoadedAt,
+  componentResults,
+  ignoredComponents,
+  onReplace,
+  onRescan,
+  onClear,
+  onClearIgnored,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [copiedRegistry, setCopiedRegistry] = useState(false)
+
+  const ignoredSet = useMemo(() => new Set(ignoredComponents), [ignoredComponents])
 
   const fileKeyMatch = !registry.meta.fileKey || fileName.length === 0
     ? null
@@ -56,6 +99,33 @@ export function SettingsTab({ registry, fileName, lastLoadedAt, onReplace, onRes
     [onReplace]
   )
 
+  const handleExport = useCallback(() => {
+    const json = buildExportJson(registry, componentResults, ignoredSet)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'figma-registry.json'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [registry, componentResults, ignoredSet])
+
+  const handleCopyRegistry = useCallback(() => {
+    const json = buildExportJson(registry, componentResults, ignoredSet)
+    const textarea = document.createElement('textarea')
+    textarea.value = json
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    setCopiedRegistry(true)
+    setTimeout(() => setCopiedRegistry(false), 1500)
+  }, [registry, componentResults, ignoredSet])
+
   return (
     <div>
       {/* File Info */}
@@ -95,6 +165,37 @@ export function SettingsTab({ registry, fileName, lastLoadedAt, onReplace, onRes
           {decisionCount} decision{decisionCount !== 1 ? 's' : ''}
         </div>
       </div>
+
+      {/* Export */}
+      <div class={styles.settingsSection}>
+        <div class={styles.settingsLabel}>Export</div>
+        <div class={styles.settingsActions}>
+          <button class={styles.actionBtn} onClick={handleExport}>
+            Export Registry
+          </button>
+          <button
+            class={`${styles.actionBtn} ${copiedRegistry ? styles.actionBtnSuccess : ''}`}
+            onClick={handleCopyRegistry}
+          >
+            {copiedRegistry ? 'Copied!' : 'Copy Registry'}
+          </button>
+        </div>
+      </div>
+
+      {/* Ignored Components */}
+      {ignoredComponents.length > 0 && (
+        <div class={styles.settingsSection}>
+          <div class={styles.settingsLabel}>Ignored Components</div>
+          <div class={styles.settingsValue}>
+            {ignoredComponents.length} component{ignoredComponents.length !== 1 ? 's' : ''} hidden
+          </div>
+          <div class={styles.settingsActions} style={{ marginTop: '6px' }}>
+            <button class={styles.actionBtn} onClick={onClearIgnored}>
+              Clear Ignore List
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div class={styles.settingsSection}>

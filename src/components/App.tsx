@@ -2,19 +2,23 @@ import { h } from 'preact'
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
 import { emit, on } from '@create-figma-plugin/utilities'
 
-import { STORAGE_KEY, TAB_NAMES, TabName } from '../constants'
+import { TAB_NAMES, TabName } from '../constants'
 import { compareComponents } from '../comparison/compare-components'
 import { compareTokens } from '../comparison/compare-tokens'
 import {
+  ClearStateHandler,
   ComponentComparisonResult,
   FigmaComponentInfo,
   FigmaVariableInfo,
+  LoadStateHandler,
   PersistedState,
   RegistryJson,
   RequestScanHandler,
+  SaveStateHandler,
   ScanCompleteHandler,
   ScanErrorHandler,
   FileInfoHandler,
+  StateLoadedHandler,
   TokenComparisonResult,
   UiReadyHandler,
 } from '../types'
@@ -33,26 +37,29 @@ export function App() {
   const [scanError, setScanError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabName>('Components')
 
+  // Ignored components (by name)
+  const [ignoredComponents, setIgnoredComponents] = useState<string[]>([])
+
   // Scan results
   const [figmaComponents, setFigmaComponents] = useState<FigmaComponentInfo[]>([])
   const [figmaVariables, setFigmaVariables] = useState<FigmaVariableInfo[]>([])
 
-  // Load persisted state on mount, then signal ready to main thread
+  // Load persisted state from clientStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const state: PersistedState = JSON.parse(stored)
-        if (state.registry) {
-          setRegistry(state.registry)
-          setLastLoadedAt(state.lastLoadedAt)
-        }
+    const cleanup = on<StateLoadedHandler>('STATE_LOADED', (data) => {
+      if (data?.registry) {
+        setRegistry(data.registry)
+        setLastLoadedAt(data.lastLoadedAt)
+        setIgnoredComponents(data.ignoredComponents ?? [])
+        // Auto-scan so we compare against the live Figma file
+        setScanning(true)
+        emit<RequestScanHandler>('REQUEST_SCAN')
       }
-    } catch {
-      // Ignore storage errors
-    }
-    // Tell main thread we're ready to receive messages
-    emit<UiReadyHandler>('UI_READY')
+      // Tell main thread we're ready to receive messages
+      emit<UiReadyHandler>('UI_READY')
+    })
+    emit<LoadStateHandler>('LOAD_STATE')
+    return cleanup
   }, [])
 
   // Listen for file info
@@ -81,17 +88,13 @@ export function App() {
     })
   }, [])
 
-  // Persist state when registry changes
+  // Persist state to clientStorage when registry or ignored list changes
   useEffect(() => {
     if (registry) {
-      const state: PersistedState = { registry, lastLoadedAt }
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-      } catch {
-        // Storage full or unavailable
-      }
+      const state: PersistedState = { registry, lastLoadedAt, ignoredComponents }
+      emit<SaveStateHandler>('SAVE_STATE', state)
     }
-  }, [registry, lastLoadedAt])
+  }, [registry, lastLoadedAt, ignoredComponents])
 
   // Trigger scan
   const triggerScan = useCallback(() => {
@@ -114,13 +117,25 @@ export function App() {
   const handleClear = useCallback(() => {
     setRegistry(null)
     setLastLoadedAt(null)
+    setIgnoredComponents([])
     setFigmaComponents([])
     setFigmaVariables([])
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // Ignore
-    }
+    emit<ClearStateHandler>('CLEAR_STATE')
+  }, [])
+
+  // Ignore a component by name
+  const handleIgnore = useCallback((name: string) => {
+    setIgnoredComponents((prev) => prev.includes(name) ? prev : [...prev, name])
+  }, [])
+
+  // Restore a component from the ignored list
+  const handleRestore = useCallback((name: string) => {
+    setIgnoredComponents((prev) => prev.filter((n) => n !== name))
+  }, [])
+
+  // Clear the entire ignore list
+  const handleClearIgnored = useCallback(() => {
+    setIgnoredComponents([])
   }, [])
 
   // Comparison results
@@ -173,7 +188,14 @@ export function App() {
 
       {/* Content */}
       <div class={styles.content}>
-        {activeTab === 'Components' && <ComponentsTab results={componentResults} />}
+        {activeTab === 'Components' && (
+          <ComponentsTab
+            results={componentResults}
+            ignoredComponents={ignoredComponents}
+            onIgnore={handleIgnore}
+            onRestore={handleRestore}
+          />
+        )}
         {activeTab === 'Tokens' && <TokensTab results={tokenResults} />}
         {activeTab === 'Decisions' && <DecisionsTab decisions={registry.decisions} />}
         {activeTab === 'Settings' && (
@@ -181,9 +203,12 @@ export function App() {
             registry={registry}
             fileName={fileName}
             lastLoadedAt={lastLoadedAt}
+            componentResults={componentResults}
+            ignoredComponents={ignoredComponents}
             onReplace={handleRegistryLoaded}
             onRescan={triggerScan}
             onClear={handleClear}
+            onClearIgnored={handleClearIgnored}
           />
         )}
       </div>

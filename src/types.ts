@@ -4,14 +4,19 @@ import { EventHandler } from '@create-figma-plugin/utilities'
 
 export interface RegistryJson {
   meta: RegistryMeta
-  tokenTranslation: TokenTranslation
+  tokenTranslation?: TokenTranslation
   tokens: {
     primitives: Record<string, TokenEntry>
     semantics: Record<string, TokenEntry>
     spacing: Record<string, TokenEntry>
   }
-  decisions: Record<string, DecisionEntry[]>
+  decisions?: Record<string, DecisionEntry[]>
   components: Record<string, ComponentEntry>
+  drift?: DriftSection
+  unmapped?: UnmappedSection
+  auditFlags?: AuditFlag[]
+  projectConfig?: Record<string, unknown>
+  [key: string]: unknown // preserve unknown top-level keys
 }
 
 export interface RegistryMeta {
@@ -43,6 +48,8 @@ export interface ComponentEntry {
   relatedFigma?: Record<string, string>
   syncNotes?: string
   kind?: ComponentKind
+  pendingChanges?: PendingChanges
+  [key: string]: unknown // preserve unknown fields
 }
 
 export type ComponentKind = 'page' | 'section' | 'component'
@@ -54,6 +61,9 @@ export type ComponentStatus =
   | 'code-only'
   | 'missing'
   | 'drift'
+  | 'drift-detected'
+  | 'outdated'
+  | 'figma-only'
   | 'untracked'
 
 export interface DecisionEntry {
@@ -81,6 +91,55 @@ export interface TranslationRule {
   figmaPattern: string
   cssPattern: string
   description?: string
+}
+
+// ── Drift Types ─────────────────────────────────────────────────────
+
+export interface DriftSection {
+  active: DriftEntry[]
+  resolved: DriftEntry[]
+  adopted: DriftEntry[]
+}
+
+export interface DriftEntry {
+  component: string
+  issue: string
+  direction?: string
+  status?: string
+  date: string
+  decision?: string
+  action?: string
+  change?: string
+}
+
+export interface UnmappedSection {
+  figmaOnly: UnmappedFigmaEntry[]
+  codeOnly: UnmappedCodeEntry[]
+}
+
+export interface UnmappedFigmaEntry {
+  figmaName: string
+  figmaNodeId: string
+  possibleCodeMatch?: string | null
+  notes?: string
+}
+
+export interface UnmappedCodeEntry {
+  componentName: string
+  codePath: string
+  notes?: string
+}
+
+export interface AuditFlag {
+  severity: 'warning' | 'info' | 'error'
+  issue: string
+  location: string
+}
+
+export interface PendingChanges {
+  detectedAt: string
+  diffs: string[]
+  priority: 'high' | 'medium' | 'low'
 }
 
 // ── Figma Scan Results ────────────────────────────────────────────────
@@ -112,6 +171,8 @@ export interface ComponentComparisonResult {
   figmaComponent: FigmaComponentInfo | null
   status: ComparisonStatus
   kind: ComponentKind
+  driftReasons?: string[]
+  pendingChanges?: PendingChanges
   /** If this result is a variant set, its child variants */
   variants?: ComponentComparisonResult[]
   /** True if this result is a variant inside a set (should be hidden at top level) */
@@ -125,6 +186,9 @@ export type ComparisonStatus =
   | 'untracked'    // in Figma but NOT in registry
   | 'code-only'    // in registry, no Figma mapping
   | 'unverified'   // in registry, needs verification
+  | 'drift'        // in both, but differences detected (internal alias)
+  | 'drift-detected' // in both, but differences detected (display status)
+  | 'outdated'     // registry data is stale
 
 export interface TokenComparisonResult {
   name: string
@@ -133,6 +197,7 @@ export interface TokenComparisonResult {
   figmaVariable: FigmaVariableInfo | null
   status: 'matched' | 'missing' | 'value-diff'
   valueDiff?: { registry: string; figma: string }
+  aliasChain?: string[]
 }
 
 export type TokenCategory = 'primitives' | 'semantics' | 'spacing'
@@ -143,6 +208,7 @@ export interface PersistedState {
   registry: RegistryJson | null
   lastLoadedAt: string | null
   ignoredComponents?: string[]
+  pinnedComponents?: string[]
 }
 
 // ── Event Handlers ────────────────────────────────────────────────────

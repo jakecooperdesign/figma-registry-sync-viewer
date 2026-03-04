@@ -132,7 +132,7 @@ export default function () {
   // Show UI first — handlers above are registered and ready
   showUI({
     height: 560,
-    width: 400,
+    width: 520,
   })
 }
 

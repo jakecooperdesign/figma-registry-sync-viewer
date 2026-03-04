@@ -3,6 +3,7 @@ import {
   ComponentEntry,
   ComponentKind,
   FigmaComponentInfo,
+  PendingChanges,
   RegistryJson,
 } from '../types'
 
@@ -40,9 +41,20 @@ export function compareComponents(
       matchedFigmaKeys.add(figmaMatch.key)
     }
 
-    const status = resolveStatus(entry, figmaMatch)
+    const { status, driftReasons } = resolveStatus(entry, figmaMatch, figmaComponents)
+
+    // Build pendingChanges when drift detected
+    let pendingChanges: PendingChanges | undefined
+    if (status === 'drift-detected' && driftReasons && driftReasons.length > 0) {
+      pendingChanges = {
+        detectedAt: new Date().toISOString().slice(0, 10),
+        diffs: driftReasons,
+        priority: 'medium',
+      }
+    }
+
     const kind = resolveKind(name, entry)
-    flat.push({ name, registryEntry: entry, figmaComponent: figmaMatch, status, kind })
+    flat.push({ name, registryEntry: entry, figmaComponent: figmaMatch, status, kind, driftReasons, pendingChanges })
   }
 
   // Find untracked Figma components (in Figma but not in registry)
@@ -167,22 +179,52 @@ function resolveKind(name: string, entry: ComponentEntry | null): ComponentKind 
 
 function resolveStatus(
   entry: ComponentEntry,
-  figmaMatch: FigmaComponentInfo | null
-): ComponentComparisonResult['status'] {
+  figmaMatch: FigmaComponentInfo | null,
+  allFigmaComponents: FigmaComponentInfo[]
+): { status: ComponentComparisonResult['status']; driftReasons?: string[] } {
   // If registry says code-only (no Figma mapping), keep it
   if (entry.status === 'code-only' || !entry.figmaNodeId) {
-    return 'code-only'
+    return { status: 'code-only' }
   }
 
   // If registry has a Figma mapping but component not found in scan
   if (!figmaMatch) {
-    return 'missing'
+    return { status: 'missing' }
   }
 
-  // Figma component found — use registry status
-  if (entry.status === 'unverified') return 'unverified'
-  if (entry.status === 'drift') return 'missing'
+  // Figma component found — check for drift (skip code-only/unverified)
+  if (entry.status === 'unverified') return { status: 'unverified' }
+
+  const reasons: string[] = []
+
+  // Name mismatch
+  if (entry.figmaName && figmaMatch.name !== entry.figmaName) {
+    reasons.push(`Name mismatch: registry "${entry.figmaName}" vs Figma "${figmaMatch.name}"`)
+  }
+
+  // Variant checks (only for COMPONENT_SET)
+  if (entry.children && entry.children.length > 0 && figmaMatch.nodeType === 'COMPONENT_SET') {
+    const figmaChildren = allFigmaComponents.filter((c) => c.parentId === figmaMatch.id)
+
+    // Variant count mismatch
+    if (figmaChildren.length !== entry.children.length) {
+      reasons.push(
+        `Variant count: registry has ${entry.children.length}, Figma has ${figmaChildren.length}`
+      )
+    }
+
+    // Missing specific variants
+    const figmaChildNames = new Set(figmaChildren.map((c) => c.name))
+    const missingVariants = entry.children.filter((name) => !figmaChildNames.has(name))
+    if (missingVariants.length > 0) {
+      reasons.push(`Missing variants: ${missingVariants.join(', ')}`)
+    }
+  }
+
+  if (reasons.length > 0) {
+    return { status: 'drift-detected', driftReasons: reasons }
+  }
 
   // synced or in-sync
-  return entry.status === 'in-sync' ? 'in-sync' : 'synced'
+  return { status: entry.status === 'in-sync' ? 'in-sync' : 'synced' }
 }

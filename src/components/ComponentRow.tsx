@@ -37,8 +37,13 @@ function buildPromptSnippet(result: ComponentComparisonResult): string {
     prompt += `It exists in Figma but isn't tracked in the component registry.`
   } else if (status === 'unverified') {
     prompt += `It hasn't been verified against Figma yet.`
-  } else if (status === 'drift') {
+  } else if (status === 'drift' || status === 'drift-detected') {
     prompt += `It's drifted out of sync between code and Figma.`
+    if (result.driftReasons?.length) {
+      prompt += ` Drift: ${result.driftReasons.join('; ')}`
+    }
+  } else if (status === 'outdated') {
+    prompt += `Its registry data is stale and needs updating.`
   }
 
   return prompt
@@ -48,9 +53,37 @@ interface Props {
   result: ComponentComparisonResult
   onIgnore?: (name: string) => void
   onRestore?: (name: string) => void
+  isPinned?: boolean
+  onPin?: (name: string) => void
+  onUnpin?: (name: string) => void
+  isFocused?: boolean
+  rowIndex?: number
+  onAddToRegistry?: (result: ComponentComparisonResult) => void
+  onMarkSynced?: (result: ComponentComparisonResult) => void
+  onUpdateFromFigma?: (result: ComponentComparisonResult) => void
+  onAcceptDrift?: (name: string) => void
+  onUndoOverride?: (name: string) => void
+  isOverridden?: boolean
+  isDriftAccepted?: boolean
 }
 
-export function ComponentRow({ result, onIgnore, onRestore }: Props) {
+export function ComponentRow({
+  result,
+  onIgnore,
+  onRestore,
+  isPinned,
+  onPin,
+  onUnpin,
+  isFocused,
+  rowIndex,
+  onAddToRegistry,
+  onMarkSynced,
+  onUpdateFromFigma,
+  onAcceptDrift,
+  onUndoOverride,
+  isOverridden,
+  isDriftAccepted,
+}: Props) {
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
   const entry = result.registryEntry
@@ -87,8 +120,24 @@ export function ComponentRow({ result, onIgnore, onRestore }: Props) {
     }
   }
 
+  function handlePinToggle(e: Event) {
+    e.stopPropagation()
+    if (isPinned) {
+      onUnpin?.(result.name)
+    } else {
+      onPin?.(result.name)
+    }
+  }
+
+  const displayStatus = result.status === 'drift' ? 'drift-detected' : result.status
+
+  const rowClasses = [
+    styles.row,
+    isFocused ? styles.rowFocused : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div class={styles.row}>
+    <div class={rowClasses} data-row-index={rowIndex}>
       <div class={styles.rowHeader} onClick={() => setExpanded(!expanded)}>
         <span class={`${styles.chevron} ${expanded ? styles.chevronOpen : ''}`}>
           <Icon name="caret-right" size={10} />
@@ -111,7 +160,7 @@ export function ComponentRow({ result, onIgnore, onRestore }: Props) {
           )}
         </span>
         <div class={styles.rowActions}>
-          <StatusBadge status={result.status} />
+          <StatusBadge status={isOverridden ? 'synced' : displayStatus} />
           {onRestore && (
             <button
               class={styles.goToBtn}
@@ -156,11 +205,36 @@ export function ComponentRow({ result, onIgnore, onRestore }: Props) {
 
       {expanded && (
         <div class={styles.rowDetails}>
-          {STATUS_DESCRIPTIONS[result.status] && (
+          {STATUS_DESCRIPTIONS[displayStatus] && (
             <div class={styles.statusDescription}>
-              {STATUS_DESCRIPTIONS[result.status]}
+              {STATUS_DESCRIPTIONS[displayStatus]}
             </div>
           )}
+
+          {/* Drift reasons */}
+          {result.driftReasons && result.driftReasons.length > 0 && (
+            <div class={styles.driftReasons}>
+              {result.driftReasons.map((reason, i) => (
+                <div key={i} class={styles.driftReason}>
+                  <Icon name="warning" size={12} />
+                  <span>{reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pending changes */}
+          {result.pendingChanges && (
+            <div class={styles.pendingChanges}>
+              <div class={styles.pendingChangesLabel}>
+                Pending Changes (detected {result.pendingChanges.detectedAt})
+              </div>
+              {result.pendingChanges.diffs.map((diff, i) => (
+                <div key={i}>{diff}</div>
+              ))}
+            </div>
+          )}
+
           {entry?.codePath && (
             <div class={styles.rowDetail}>
               <span class={styles.rowDetailLabel}>Code:</span>
@@ -218,6 +292,71 @@ export function ComponentRow({ result, onIgnore, onRestore }: Props) {
             </div>
           )}
 
+          {/* Sync action buttons */}
+          {!isOverridden && (
+            <div class={styles.syncActions}>
+              {result.status === 'untracked' && onAddToRegistry && (
+                <button
+                  class={styles.syncActionBtn}
+                  onClick={() => onAddToRegistry(result)}
+                  title="Add this component to the registry"
+                >
+                  <Icon name="plus" size={12} />
+                  Add to Registry
+                </button>
+              )}
+              {(result.status === 'unverified' || result.status === 'missing') && onMarkSynced && (
+                <button
+                  class={styles.syncActionBtn}
+                  onClick={() => onMarkSynced(result)}
+                  title="Mark this component as synced"
+                >
+                  <Icon name="check-circle" size={12} />
+                  Mark as Synced
+                </button>
+              )}
+              {(result.status === 'drift-detected' || result.status === 'drift') && onAcceptDrift && (
+                <button
+                  class={styles.syncActionBtn}
+                  onClick={() => onAcceptDrift(result.name)}
+                  title="Accept drift as intentional"
+                >
+                  <Icon name="shield-check" size={12} />
+                  Accept Drift
+                </button>
+              )}
+              {(result.status === 'drift-detected' || result.status === 'drift') && onUpdateFromFigma && (
+                <button
+                  class={styles.syncActionBtn}
+                  onClick={() => onUpdateFromFigma(result)}
+                  title="Update registry entry from Figma"
+                >
+                  <Icon name="arrows-clockwise" size={12} />
+                  Update from Figma
+                </button>
+              )}
+            </div>
+          )}
+          {isOverridden && (
+            <div class={styles.syncActions}>
+              <div class={styles.statusDescription} style={{ color: '#4ADE80', marginBottom: 0 }}>
+                {isDriftAccepted
+                  ? 'Drift accepted — will be exported as resolved.'
+                  : 'Updated — changes will be included in export.'}
+              </div>
+              {onUndoOverride && (
+                <button
+                  class={styles.syncActionBtn}
+                  onClick={() => onUndoOverride(result.name)}
+                  title="Undo this change"
+                >
+                  <Icon name="arrow-counter-clockwise" size={12} />
+                  Undo
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Variant list */}
           {variants && variants.length > 0 && (
             <div class={styles.variantSection}>
@@ -230,7 +369,7 @@ export function ComponentRow({ result, onIgnore, onRestore }: Props) {
                 )}
               </div>
               {variants.map((v) => (
-                <VariantRow key={v.figmaComponent?.id ?? v.name} variant={v} />
+                <VariantRow key={v.figmaComponent?.id ?? v.name} variant={v} onAcceptDrift={onAcceptDrift} />
               ))}
             </div>
           )}
@@ -240,8 +379,9 @@ export function ComponentRow({ result, onIgnore, onRestore }: Props) {
   )
 }
 
-function VariantRow({ variant }: { variant: ComponentComparisonResult }) {
+function VariantRow({ variant, onAcceptDrift }: { variant: ComponentComparisonResult; onAcceptDrift?: (name: string) => void }) {
   const nodeId = variant.figmaComponent?.id ?? variant.registryEntry?.figmaNodeId
+  const isDrift = variant.status === 'drift-detected' || variant.status === 'drift'
 
   function handleNavigate(e: Event) {
     e.stopPropagation()
@@ -255,6 +395,18 @@ function VariantRow({ variant }: { variant: ComponentComparisonResult }) {
       <span class={styles.variantName}>{variant.name}</span>
       <div class={styles.rowActions}>
         <StatusBadge status={variant.status} />
+        {isDrift && onAcceptDrift && (
+          <button
+            class={styles.goToBtn}
+            onClick={(e: Event) => {
+              e.stopPropagation()
+              onAcceptDrift(variant.name)
+            }}
+            title="Accept drift for this variant"
+          >
+            <Icon name="shield-check" size={14} />
+          </button>
+        )}
         <button
           class={`${styles.goToBtn} ${!nodeId ? styles.goToBtnDisabled : ''}`}
           onClick={nodeId ? handleNavigate : undefined}

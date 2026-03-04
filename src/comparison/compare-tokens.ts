@@ -29,10 +29,15 @@ export function compareTokens(
 
       let status: TokenComparisonResult['status'] = 'missing'
       let valueDiff: TokenComparisonResult['valueDiff'] | undefined
+      let aliasChain: string[] | undefined
 
       if (figmaVar) {
         const registryValue = normalizeValue(entry.value, entry)
-        const figmaValue = extractFigmaValue(figmaVar)
+        const { value: figmaValue, chain } = extractFigmaValue(figmaVar, byId)
+
+        if (chain && chain.length > 1) {
+          aliasChain = chain
+        }
 
         if (registryValue && figmaValue && registryValue !== figmaValue) {
           status = 'value-diff'
@@ -42,7 +47,7 @@ export function compareTokens(
         }
       }
 
-      results.push({ name, category, registryEntry: entry, figmaVariable: figmaVar, status, valueDiff })
+      results.push({ name, category, registryEntry: entry, figmaVariable: figmaVar, status, valueDiff, aliasChain })
     }
   }
 
@@ -65,34 +70,82 @@ function normalizeValue(value: string | number | undefined, entry: TokenEntry): 
   return normalizeHex(value)
 }
 
-/** Extract the first mode's value from a Figma variable */
-function extractFigmaValue(variable: FigmaVariableInfo): string | null {
+/** Resolve a chain of VARIABLE_ALIAS references to the final value */
+function resolveAliasChain(
+  variable: FigmaVariableInfo,
+  byId: Map<string, FigmaVariableInfo>,
+  maxDepth = 10
+): { value: string | null; chain: string[] } | null {
+  const chain: string[] = [variable.name]
+  const visited = new Set<string>([variable.id])
+  let current = variable
+
+  for (let i = 0; i < maxDepth; i++) {
+    const modes = Object.values(current.valuesByMode)
+    if (modes.length === 0) return { value: null, chain }
+
+    const val = modes[0]
+
+    if (!isAlias(val)) {
+      // Reached a concrete value
+      const resolved = resolveConcreteValue(val)
+      return { value: resolved, chain }
+    }
+
+    // Follow the alias
+    if (visited.has(val.id)) return null // Cycle detected
+    const next = byId.get(val.id)
+    if (!next) return null // Broken chain
+
+    visited.add(val.id)
+    chain.push(next.name)
+    current = next
+  }
+
+  return null // Max depth exceeded
+}
+
+/** Resolve a non-alias value to string */
+function resolveConcreteValue(val: unknown): string | null {
+  if (isRGBA(val)) return rgbaToHex(val)
+  if (typeof val === 'number') return String(val)
+  if (typeof val === 'string') return normalizeHex(val)
+  return null
+}
+
+/** Extract the first mode's value from a Figma variable, resolving aliases */
+function extractFigmaValue(
+  variable: FigmaVariableInfo,
+  byId: Map<string, FigmaVariableInfo>
+): { value: string | null; chain?: string[] } {
   const modes = Object.values(variable.valuesByMode)
-  if (modes.length === 0) return null
+  if (modes.length === 0) return { value: null }
 
   const val = modes[0]
 
+  // Alias reference — resolve the chain
+  if (isAlias(val)) {
+    const result = resolveAliasChain(variable, byId)
+    if (result) return result
+    return { value: null }
+  }
+
   // RGBA object → hex
   if (isRGBA(val)) {
-    return rgbaToHex(val)
+    return { value: rgbaToHex(val) }
   }
 
   // Number (spacing)
   if (typeof val === 'number') {
-    return String(val)
+    return { value: String(val) }
   }
 
   // String
   if (typeof val === 'string') {
-    return normalizeHex(val)
+    return { value: normalizeHex(val) }
   }
 
-  // Alias reference — skip value comparison
-  if (isAlias(val)) {
-    return null
-  }
-
-  return null
+  return { value: null }
 }
 
 /** Normalize hex string to uppercase with # prefix */

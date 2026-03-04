@@ -8,6 +8,8 @@ import { compareTokens } from '../comparison/compare-tokens'
 import {
   ClearStateHandler,
   ComponentComparisonResult,
+  ComponentEntry,
+  DriftEntry,
   FigmaComponentInfo,
   FigmaVariableInfo,
   LoadStateHandler,
@@ -23,7 +25,7 @@ import {
   UiReadyHandler,
 } from '../types'
 import { ComponentsTab } from './ComponentsTab'
-import { DecisionsTab } from './DecisionsTab'
+import { DriftTab } from './DriftTab'
 import { EmptyState } from './EmptyState'
 import { SettingsTab } from './SettingsTab'
 import { TokensTab } from './TokensTab'
@@ -40,6 +42,15 @@ export function App() {
   // Ignored components (by name)
   const [ignoredComponents, setIgnoredComponents] = useState<string[]>([])
 
+  // Pinned components (by name)
+  const [pinnedComponents, setPinnedComponents] = useState<string[]>([])
+
+  // Registry overrides from sync actions
+  const [registryOverrides, setRegistryOverrides] = useState<Map<string, ComponentEntry>>(new Map())
+
+  // Drift overrides: resolved entries from accept drift actions
+  const [driftOverrides, setDriftOverrides] = useState<{ resolved: DriftEntry[] }>({ resolved: [] })
+
   // Scan results
   const [figmaComponents, setFigmaComponents] = useState<FigmaComponentInfo[]>([])
   const [figmaVariables, setFigmaVariables] = useState<FigmaVariableInfo[]>([])
@@ -51,6 +62,7 @@ export function App() {
         setRegistry(data.registry)
         setLastLoadedAt(data.lastLoadedAt)
         setIgnoredComponents(data.ignoredComponents ?? [])
+        setPinnedComponents(data.pinnedComponents ?? [])
         // Auto-scan so we compare against the live Figma file
         setScanning(true)
         emit<RequestScanHandler>('REQUEST_SCAN')
@@ -88,13 +100,13 @@ export function App() {
     })
   }, [])
 
-  // Persist state to clientStorage when registry or ignored list changes
+  // Persist state to clientStorage when registry, ignored, or pinned list changes
   useEffect(() => {
     if (registry) {
-      const state: PersistedState = { registry, lastLoadedAt, ignoredComponents }
+      const state: PersistedState = { registry, lastLoadedAt, ignoredComponents, pinnedComponents }
       emit<SaveStateHandler>('SAVE_STATE', state)
     }
-  }, [registry, lastLoadedAt, ignoredComponents])
+  }, [registry, lastLoadedAt, ignoredComponents, pinnedComponents])
 
   // Trigger scan
   const triggerScan = useCallback(() => {
@@ -108,6 +120,8 @@ export function App() {
     (reg: RegistryJson) => {
       setRegistry(reg)
       setLastLoadedAt(new Date().toISOString())
+      setRegistryOverrides(new Map())
+      setDriftOverrides({ resolved: [] })
       triggerScan()
     },
     [triggerScan]
@@ -118,6 +132,9 @@ export function App() {
     setRegistry(null)
     setLastLoadedAt(null)
     setIgnoredComponents([])
+    setPinnedComponents([])
+    setRegistryOverrides(new Map())
+    setDriftOverrides({ resolved: [] })
     setFigmaComponents([])
     setFigmaVariables([])
     emit<ClearStateHandler>('CLEAR_STATE')
@@ -137,6 +154,210 @@ export function App() {
   const handleClearIgnored = useCallback(() => {
     setIgnoredComponents([])
   }, [])
+
+  // Pin / Unpin
+  const handlePin = useCallback((name: string) => {
+    setPinnedComponents((prev) => prev.includes(name) ? prev : [...prev, name])
+  }, [])
+
+  const handleUnpin = useCallback((name: string) => {
+    setPinnedComponents((prev) => prev.filter((n) => n !== name))
+  }, [])
+
+  // Sync actions
+  const handleAddToRegistry = useCallback((result: ComponentComparisonResult) => {
+    if (!result.figmaComponent) return
+    const fc = result.figmaComponent
+    const entry: ComponentEntry = {
+      codePath: '',
+      cssScope: [],
+      figmaNodeId: fc.id,
+      figmaComponentKey: fc.key,
+      figmaName: fc.name,
+      lastVerified: new Date().toISOString().slice(0, 10),
+      status: 'unverified',
+    }
+    setRegistryOverrides((prev) => {
+      const next = new Map(prev)
+      next.set(result.name, entry)
+      return next
+    })
+  }, [])
+
+  const handleMarkSynced = useCallback((result: ComponentComparisonResult) => {
+    const base = result.registryEntry ?? {
+      codePath: '',
+      cssScope: [],
+      figmaNodeId: result.figmaComponent?.id ?? null,
+      lastVerified: '',
+      status: 'synced' as const,
+    }
+    const entry: ComponentEntry = {
+      ...base,
+      status: 'synced',
+      lastVerified: new Date().toISOString().slice(0, 10),
+    }
+    setRegistryOverrides((prev) => {
+      const next = new Map(prev)
+      next.set(result.name, entry)
+      return next
+    })
+  }, [])
+
+  const handleUpdateFromFigma = useCallback((result: ComponentComparisonResult) => {
+    if (!result.figmaComponent || !result.registryEntry) return
+    const fc = result.figmaComponent
+    const entry: ComponentEntry = {
+      ...result.registryEntry,
+      figmaName: fc.name,
+      figmaNodeId: fc.id,
+      figmaComponentKey: fc.key,
+      status: 'synced',
+      lastVerified: new Date().toISOString().slice(0, 10),
+    }
+    // Update children from Figma if it's a COMPONENT_SET
+    if (fc.nodeType === 'COMPONENT_SET') {
+      const figmaChildren = figmaComponents.filter((c) => c.parentId === fc.id)
+      entry.children = figmaChildren.map((c) => c.name)
+    }
+    // Clear pendingChanges on acceptance
+    delete entry.pendingChanges
+    setRegistryOverrides((prev) => {
+      const next = new Map(prev)
+      next.set(result.name, entry)
+      return next
+    })
+  }, [figmaComponents])
+
+  // Accept drift for a single component
+  const handleAcceptDrift = useCallback((componentName: string) => {
+    const result = componentResults.find((r) => r.name === componentName)
+    if (!result) return
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    // Create resolved drift entry
+    const driftEntry: DriftEntry = {
+      component: componentName,
+      issue: result.driftReasons?.join('; ') ?? 'Drift accepted',
+      decision: 'design-accepted',
+      date: today,
+    }
+
+    setDriftOverrides((prev) => ({
+      resolved: [...prev.resolved, driftEntry],
+    }))
+
+    // Mark component as synced
+    if (result.registryEntry) {
+      const entry: ComponentEntry = {
+        ...result.registryEntry,
+        status: 'synced',
+        lastVerified: today,
+      }
+      delete entry.pendingChanges
+      setRegistryOverrides((prev) => {
+        const next = new Map(prev)
+        next.set(componentName, entry)
+        return next
+      })
+    }
+  }, []) // componentResults accessed via closure below
+
+  // Undo any override for a single component (drift acceptance, add to registry, mark synced, etc.)
+  const handleUndoOverride = useCallback((componentName: string) => {
+    // Remove from drift overrides if present
+    setDriftOverrides((prev) => ({
+      resolved: prev.resolved.filter((e) => e.component !== componentName),
+    }))
+    // Remove from registry overrides so it reverts to original status
+    setRegistryOverrides((prev) => {
+      const next = new Map(prev)
+      next.delete(componentName)
+      return next
+    })
+  }, [])
+
+  // Accept drift for a DriftEntry (from DriftTab)
+  const handleAcceptDriftEntry = useCallback((entry: DriftEntry) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const resolvedEntry: DriftEntry = {
+      ...entry,
+      decision: 'design-accepted',
+      date: today,
+    }
+    setDriftOverrides((prev) => ({
+      resolved: [...prev.resolved, resolvedEntry],
+    }))
+  }, [])
+
+  // Accept all drift
+  const handleAcceptAllDrift = useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const newResolved: DriftEntry[] = []
+
+    for (const r of componentResults) {
+      if (r.status !== 'drift-detected' && r.status !== 'drift') continue
+      if (registryOverrides.has(r.name)) continue // Already overridden
+
+      newResolved.push({
+        component: r.name,
+        issue: r.driftReasons?.join('; ') ?? 'Drift accepted',
+        decision: 'design-accepted',
+        date: today,
+      })
+
+      // Mark as synced
+      if (r.registryEntry) {
+        const entry: ComponentEntry = {
+          ...r.registryEntry,
+          status: 'synced',
+          lastVerified: today,
+        }
+        delete entry.pendingChanges
+        setRegistryOverrides((prev) => {
+          const next = new Map(prev)
+          next.set(r.name, entry)
+          return next
+        })
+      }
+    }
+
+    // Also resolve active drift entries from registry
+    if (registry?.drift?.active) {
+      for (const entry of registry.drift.active) {
+        newResolved.push({
+          ...entry,
+          decision: 'design-accepted',
+          date: today,
+        })
+      }
+    }
+
+    setDriftOverrides((prev) => ({
+      resolved: [...prev.resolved, ...newResolved],
+    }))
+  }, [figmaComponents, registry])
+
+  // Clear all pending overrides (registry + drift)
+  const handleClearOverrides = useCallback(() => {
+    setRegistryOverrides(new Map())
+    setDriftOverrides({ resolved: [] })
+  }, [])
+
+  // Undo all accepted drift
+  const handleUndoAllDrift = useCallback(() => {
+    // Get all component names that were drift-accepted
+    const acceptedNames = driftOverrides.resolved.map((e) => e.component)
+    // Clear all drift overrides
+    setDriftOverrides({ resolved: [] })
+    // Remove registry overrides for those components
+    setRegistryOverrides((prev) => {
+      const next = new Map(prev)
+      acceptedNames.forEach((name) => next.delete(name))
+      return next
+    })
+  }, [driftOverrides])
 
   // Comparison results
   const componentResults: ComponentComparisonResult[] = useMemo(() => {
@@ -192,12 +413,27 @@ export function App() {
           <ComponentsTab
             results={componentResults}
             ignoredComponents={ignoredComponents}
+            pinnedComponents={pinnedComponents}
             onIgnore={handleIgnore}
             onRestore={handleRestore}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
+            onAddToRegistry={handleAddToRegistry}
+            onMarkSynced={handleMarkSynced}
+            onUpdateFromFigma={handleUpdateFromFigma}
+            onAcceptDrift={handleAcceptDrift}
+            onUndoOverride={handleUndoOverride}
+            registryOverrides={registryOverrides}
+            driftOverrides={driftOverrides}
           />
         )}
         {activeTab === 'Tokens' && <TokensTab results={tokenResults} />}
-        {activeTab === 'Decisions' && <DecisionsTab decisions={registry.decisions} />}
+        {activeTab === 'Drift' && (
+          <DriftTab
+            registry={registry}
+            onAcceptDrift={handleAcceptDriftEntry}
+          />
+        )}
         {activeTab === 'Settings' && (
           <SettingsTab
             registry={registry}
@@ -205,10 +441,15 @@ export function App() {
             lastLoadedAt={lastLoadedAt}
             componentResults={componentResults}
             ignoredComponents={ignoredComponents}
+            registryOverrides={registryOverrides}
+            driftOverrides={driftOverrides}
             onReplace={handleRegistryLoaded}
             onRescan={triggerScan}
             onClear={handleClear}
             onClearIgnored={handleClearIgnored}
+            onAcceptAllDrift={handleAcceptAllDrift}
+            onUndoAllDrift={handleUndoAllDrift}
+            onClearOverrides={handleClearOverrides}
           />
         )}
       </div>
